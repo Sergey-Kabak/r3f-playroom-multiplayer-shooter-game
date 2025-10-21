@@ -1,3 +1,4 @@
+
 import { Environment } from "@react-three/drei";
 import {
   Joystick,
@@ -7,17 +8,22 @@ import {
   onPlayerJoin,
   useMultiplayerState,
 } from "playroomkit";
-import { useEffect, useState } from "react";
+import {useEffect, useRef, useState, createRef} from "react";
 import { Bullet } from "./Bullet";
 import { BulletHit } from "./BulletHit";
 import { CharacterController } from "./CharacterController";
 import { Map } from "./Map";
+import {useFrame} from "@react-three/fiber";
 
 export const Experience = ({ downgradedPerformance = false }) => {
   const [players, setPlayers] = useState([]);
+  const playersRef = useRef({});
+  const playerRbRef = useRef({});
+  const [playersPos, setPlayersPos ] = useMultiplayerState("players", {});
+
   const start = async () => {
     // Start the game
-    await insertCoin();
+    await insertCoin()
 
     // Create a joystick controller for each joining player
     onPlayerJoin((state) => {
@@ -28,6 +34,8 @@ export const Experience = ({ downgradedPerformance = false }) => {
         buttons: [{ id: "fire", label: "Fire" }],
       });
       const newPlayer = { state, joystick };
+      playersRef.current[state.id] = newPlayer;
+      playerRbRef.current[state.id] = createRef();
       state.setState("health", 100);
       state.setState("deaths", 0);
       state.setState("kills", 0);
@@ -80,26 +88,32 @@ export const Experience = ({ downgradedPerformance = false }) => {
   return (
     <>
       <Map />
-      {players.map(({ state, joystick }, index) => (
-        <CharacterController
-          key={state.id}
-          state={state}
-          userPlayer={state.id === myPlayer()?.id}
-          joystick={joystick}
-          onKilled={onKilled}
-          onFire={onFire}
-          downgradedPerformance={downgradedPerformance}
-        />
+      {players.map(({ state, joystick }, index) => {
+        return (
+            <CharacterController
+                key={state.id}
+                state={state}
+                userPlayer={state.id === myPlayer()?.id}
+                joystick={joystick}
+                onKilled={onKilled}
+                onFire={onFire}
+                downgradedPerformance={downgradedPerformance}
+                rbRef={playerRbRef.current[state.id]}
+                setPlayersPos={setPlayersPos}
+                playersPos={playersPos}
+                playerRbRef={playerRbRef}
+            />
+        )
+      })}
+      {(myPlayer()?.id ? bullets : networkBullets).map((bullet) => (
+          <Bullet
+              key={bullet.id}
+              {...bullet}
+              onHit={(position) => onHit(bullet.id, position)}
+          />
       ))}
-      {(isHost() ? bullets : networkBullets).map((bullet) => (
-        <Bullet
-          key={bullet.id}
-          {...bullet}
-          onHit={(position) => onHit(bullet.id, position)}
-        />
-      ))}
-      {(isHost() ? hits : networkHits).map((hit) => (
-        <BulletHit key={hit.id} {...hit} onEnded={() => onHitEnded(hit.id)} />
+      {(myPlayer()?.id ? hits : networkHits).map((hit) => (
+          <BulletHit key={hit.id} {...hit} onEnded={() => onHitEnded(hit.id)} />
       ))}
       <Environment preset="sunset" />
     </>

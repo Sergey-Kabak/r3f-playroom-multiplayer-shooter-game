@@ -29,6 +29,7 @@ export function CharacterSoldier({
   color = "black",
   animation = "Idle",
   weapon = "AK",
+  isHost = false,
   ...props
 }) {
   const group = useRef();
